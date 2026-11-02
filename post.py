@@ -42,6 +42,16 @@ branch = os.getenv("GITHUB_REF_NAME", "main")
 if not dry and not (page_id and token):
     sys.exit("FB_PAGE_ID and FB_PAGE_TOKEN secrets are missing. "
              "Add them in Settings > Secrets and variables > Actions.")
+# FB_PAGE_TOKEN may be a user or system-user token; swap it for the Page's own token,
+# because Facebook only accepts Page posts made "as the page itself".
+if not dry and page_id and token:
+    r = requests.get(f"{graph}/{page_id}", params={"fields": "access_token", "access_token": token}, timeout=60)
+    if r.ok and r.json().get("access_token"):
+        token = r.json()["access_token"]
+        print("Using the Page access token for page", page_id)
+    else:
+        print("Could not get a Page token, using FB_PAGE_TOKEN as-is:", r.status_code, r.text)
+
 
 def posts_for(day):
     idx = (day - start).days % len(cfg["days"])
